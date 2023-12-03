@@ -25,6 +25,15 @@ def close_note_chord(pitch,chord):
         chord1.remove(choices[w])
     return random.choice(choices)
 
+def longest(nested_list):
+    if len(nested_list) == 0:
+        return 0
+    max = nested_list[0]
+    for n in nested_list:
+        if len(n) > len(max):
+            max = n
+    return max
+
 def melody(instr,chord_prog,measures_per_chord):
 
     # make a list of lists of durations
@@ -33,24 +42,32 @@ def melody(instr,chord_prog,measures_per_chord):
         motif = []
         while sum(motif) < 4:
             motif.append(random.choice([0.25,0.5]))
-        if sum(motif) < 4:
-            motif.append(4 - sum(motif))
-        elif sum(motif) > 4:
-            motif[-1] -= sum(motif) - 4
+        #if sum(motif) < 4:
+        #    motif.append(4 - sum(motif))
+        if sum(motif) > 4:
+            motif[-1] = (4 - sum(motif[0:-1]))
         rhythm_motifs.append(motif)
     #print(f"Rhythm motifs: {rhythm_motifs}")
-    
+
+    for m in rhythm_motifs:
+        print(f"# of notes in rhythm motif: {len(m)}")
+    print(f"Notes in max rhythm motif: {len(longest(rhythm_motifs))}")
+    print(f"Notes in max rhythm motif: {len(longest(rhythm_motifs))}")
+    print(f"Index of max rhythm motif: {rhythm_motifs.index(longest(rhythm_motifs))}")
+
     # list of lists of pitch-shifts
-    motif_length = len(max(rhythm_motifs))
+    motif_length = len(longest(rhythm_motifs))
     pitch_shift_motifs = []
     direc = 1
     for _ in range(4):
         motif = [0]
         for _ in range(motif_length-1):
-            if random.random() > 0.5:
+            if random.random() < 0.2:
                 direc *= -1
             motif.append(motif[-1]+random.choice([1,2])*direc)
         pitch_shift_motifs.append(motif)
+    for m in pitch_shift_motifs:
+        print(f"Notes in pitch motif: {len(m)}")
     #print(f"Pitch shift motifs: {pitch_shift_motifs}")
 
     for key,measures in zip(chord_prog,measures_per_chord):
@@ -66,7 +83,7 @@ def melody(instr,chord_prog,measures_per_chord):
             'major7': Scale.ionian(root),
             'dominant7': Scale.mixolydian(root),
             'minor7': Scale.dorian(root),
-            'augmented': Scale.melodic_minor(root-4,4),
+            'augmented': Scale.from_pitches([root, root+2, root+4, root+5, root+7, root+8, root+10, root+12]),
             'diminished': Scale.from_pitches([root,root+1,root+3,root+4,root+6,root+7,root+9,root+10,root+12])
         }
 
@@ -82,10 +99,6 @@ def melody(instr,chord_prog,measures_per_chord):
         scale = corresp_scales[key[1]]
         chord = corresp_chords[key[1]]
         print(f"Scale: {scale[0:8]}")
-
-        for m in rhythm_motifs:
-            print(f"Motif duration: {sum(m)}")
-
 
         '''
         degree = random.randrange(-12,12)
@@ -107,6 +120,7 @@ def melody(instr,chord_prog,measures_per_chord):
         '''
 
         for _ in range(measures):
+            print("new measure")
             pitch_shifts = list(random.choice(pitch_shift_motifs))
             rhythms = random.choice(rhythm_motifs)
             scale_snip = scale[-3:17]
@@ -118,9 +132,11 @@ def melody(instr,chord_prog,measures_per_chord):
                 pitches.append(scale[index+p])
                 #print(f"Modified pitch: {pitches[p]}")
             print(f"Pitches: {pitches}")
+            print(f"Rhythms: {rhythms}")
             for pitch,dur in zip(pitches,rhythms):
                 #print(f"Pitch & duration: {pitch,dur}")
                 instr.play_note(pitch,1,dur)
+                print(f"Pitch and dur: {pitch},{dur}")
 
         '''
         for pitch,dur in zip(pitches,rhythm):
@@ -132,6 +148,24 @@ def melody(instr,chord_prog,measures_per_chord):
 
 # Andy recommends putting chords in the background
 
+def chord(chord_prog, measures_per_chord):
+    for key,measures in zip(chord_prog,measures_per_chord):
+        # find root note of chord
+        key = key.lower().strip().split()
+        chromatic = [['a'],['a#','bb'],['b','cb'],['b#','c'],['c#','db'],['d'],['d#','eb'],['e','fb'],['e#','f'],['f#','gb'],['g'],['g#','ab']]
+        for x in range(len(chromatic)):
+            if key[0] in chromatic[x]:
+                root = 57+x
+        corresp_chords = {
+                'major7': Scale.from_pitches([root,root+4,root+7,root+11,root+12]),
+                'dominant7': Scale.from_pitches([root,root+4,root+7,root+10,root+12]),
+                'minor7': Scale.from_pitches([root,root+3,root+7,root+10,root+12]),
+                'augmented': Scale.from_pitches([root,root+4,root+8,root+12]),
+                'diminished': Scale.from_pitches([root,root+3,root+6,root+9,root+12])
+            }
+        chord = corresp_chords[key[1]]
+        piano.play_chord(chord[0:3],1,measures*4)
+
 def bass(notes,measures_per_chord):
     for note,measures in zip(notes,measures_per_chord):
         chromatic = [['a'],['a#','bb'],['b','cb'],['b#','c'],['c#','db'],['d'],['d#','eb'],['e','fb'],['e#','f'],['f#','gb'],['g'],['g#','ab']]
@@ -141,12 +175,13 @@ def bass(notes,measures_per_chord):
                 for _ in range(4*measures):
                     piano.play_note(root_note,0.5,1,"staccato")
 
-chord_prog = ['a minor7','d minor7','e augmented','e augmented','a minor7']
-measures_per_chord = [1,1,1,1,1]
+chord_prog = ['g major7','b dominant7','c major7','c minor7']
+measures_per_chord = [2,2,2,2]
 
 
-fork(melody,args=[clarinet,chord_prog,measures_per_chord])
+fork(melody,args=[piano,chord_prog,measures_per_chord])
 fork(bass,args=[chord_prog,measures_per_chord])
 wait_for_children_to_finish()
-#piano.play_note(random.choice([67,71,74,79]),1,4,blocking=False)
-#piano.play_note(43,1,4)
+
+piano.play_note(random.choice([67,71,74,79]),1,4,blocking=False)
+piano.play_note(43,1,4)
