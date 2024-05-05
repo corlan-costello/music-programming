@@ -20,7 +20,7 @@ def close_note_chord(pitch,chord):
         for x in chord_pitches:
             chord1 = Scale.from_pitches(chord_pitches)
             if len(choices) == w:
-                choices.append(x)
+                choices.append(x)   
             elif abs(x-pitch) < abs(pitch-choices[w]):
                 choices[w] = x
         chord1.remove(choices[w])
@@ -121,6 +121,13 @@ def get_rhythm_set(num_measures, rhythm_motifs, beats_per_measure=4):
         # aftermath: rhythm_set = [0.5,1,0.5,1,0.75,0.25]
     return rhythm_set
 
+def get_scale_note_from_range(scale, bottom, top):
+    valid_notes = []
+    for i in range(bottom, top+1):
+        if scale.ceil(i) == i:
+            valid_notes.append(i)
+    return random.choice(valid_notes)
+
 def get_pitch_set(rhythm_set, pitch_shift_motifs, scale, previous_pitch=None):
      # create a pitch set
     pitch_set = []
@@ -138,12 +145,16 @@ def get_pitch_set(rhythm_set, pitch_shift_motifs, scale, previous_pitch=None):
             # if there's no previous pitch, I want degree to range from ~G3 to ~D5
             bottom_pitch = scale[0]
             top_pitch = scale[7]
+            bottom_pitch = get_scale_note_from_range(scale, 53, 56)
+            top_pitch = get_scale_note_from_range(scale, 72,75)
+            '''
             for pitch in range(53, 57): # ~G3
                 if pitch in scale:
                     bottom_pitch = pitch
             for pitch in range(72,76): # ~D5
                 if pitch in scale: 
                     top_pitch = pitch
+            '''
             degree = random.randrange(bottom_pitch, top_pitch)
         motif = random.choice(pitch_shift_motifs)
         for shift in motif: 
@@ -197,6 +208,10 @@ def chord(chord_prog, measures_per_chord):
     for key,measures in zip(chord_prog,measures_per_chord):
         # find root note of chord
         key = key.lower().strip().split()
+        note2midi = create_note2midi()
+        root = note2midi[key[0]]
+        chord_quality2arpeggio = get_chord_quality2arpeggio(root)
+        '''
         chromatic = [['a'],['a#','bb'],['b','cb'],['b#','c'],['c#','db'],['d'],['d#','eb'],['e','fb'],['e#','f'],['f#','gb'],['g'],['g#','ab']]
         for x in range(len(chromatic)):
             if key[0] in chromatic[x]:
@@ -208,8 +223,24 @@ def chord(chord_prog, measures_per_chord):
                 'augmented': Scale.from_pitches([root,root+4,root+8,root+12]),
                 'diminished': Scale.from_pitches([root,root+3,root+6,root+9,root+12])
             }
-        chord = corresp_chords[key[1]]
-        piano.play_chord(chord[0:3],1,measures*4)
+        '''
+        print(f"key[1] = {key[1]}")
+        chord = chord_quality2arpeggio[key[1]]
+        print(f"chord = {chord}")
+        bottom_note = get_scale_note_from_range(chord, 51,55)
+        '''
+        bottom_note = None
+        for note in range(47, 52):
+            print(f"note = {note}")
+            if chord.ceil(note) == note: # TODO: write function to clear readers' confusions
+                print(f"note in chord: {note}")
+                bottom_note = note
+                break
+        '''
+        print(f"bottom_note: {bottom_note}")
+        bottom_note_index = chord.pitch_to_degree(bottom_note)
+        print(chord[bottom_note: bottom_note+4])
+        piano.play_chord(chord[bottom_note_index : bottom_note_index+4],0.7,measures*4)
 
 def bass(notes,measures_per_chord):
     for note,measures in zip(notes,measures_per_chord):
@@ -217,14 +248,19 @@ def bass(notes,measures_per_chord):
         for x in range(len(chromatic)):
             if note.lower().strip().split()[0] in chromatic[x]:
                 root_note = 33+x
+                '''
                 for _ in range(4*measures):
                     piano.play_note(root_note,0.5,1,"staccato")
+                '''
+        beats_per_measure = 4
+        piano.play_note(root_note,0.5,measures*beats_per_measure)
 
 chord_prog = ['e minor7','c major7','b minor7','f dominant7']
 measures_per_chord = [1,1,1,1]
 
 
-fork(melody,args=[piano,chord_prog,measures_per_chord])
+fork(melody,args=[piano, chord_prog, measures_per_chord])
+fork(chord,args=[chord_prog, measures_per_chord])
 fork(bass,args=[chord_prog,measures_per_chord])
 wait_for_children_to_finish()
 
